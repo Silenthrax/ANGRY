@@ -1,5 +1,5 @@
 import random
-from pyrogram import Client, filters
+from pyrogram import filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from config import LOGGER_ID as LOG_GROUP_ID
 from SONALI import app 
@@ -19,25 +19,68 @@ photo = [
 ]
 
 @app.on_message(filters.new_chat_members, group=2)
-async def join_watcher(_, message):    
+async def join_watcher(_, message):
+    import random
     chat = message.chat
-    link = await app.export_chat_invite_link(chat.id)
+    link = None
+    # Check if bot is admin before exporting invite link
+    try:
+        bot_member = await app.get_chat_member(chat.id, (await app.get_me()).id)
+        is_admin = bot_member.status in ("administrator", "creator")
+    except Exception:
+        is_admin = False
+    if is_admin:
+        try:
+            link = await app.export_chat_invite_link(chat.id)
+            link_url = link.invite_link if hasattr(link, "invite_link") else str(link)
+        except Exception:
+            link = None
+            link_url = None
+    else:
+        link_url = None
     for member in message.new_chat_members:
         if member.id == app.id:
-            count = await app.get_chat_members_count(chat.id)
+            try:
+                count = await app.get_chat_members_count(chat.id)
+            except Exception:
+                count = "?"
             msg = (
                 f"📝 ᴍᴜsɪᴄ ʙᴏᴛ ᴀᴅᴅᴇᴅ ɪɴ ᴀ ɴᴇᴡ ɢʀᴏᴜᴘ\n\n"
                 f"____________________________________\n\n"
                 f"📌 ᴄʜᴀᴛ ɴᴀᴍᴇ: {chat.title}\n"
                 f"🍂 ᴄʜᴀᴛ ɪᴅ: {chat.id}\n"
-                f"🔐 ᴄʜᴀᴛ ᴜsᴇʀɴᴀᴍᴇ: @{chat.username}\n"
-                f"🛰 ᴄʜᴀᴛ ʟɪɴᴋ: [ᴄʟɪᴄᴋ]({link})\n"
+                f"🔐 ᴄʜᴀᴛ ᴜsᴇʀɴᴀᴍᴇ: @{chat.username if chat.username else 'N/A'}\n"
+                f"🛰 ᴄʜᴀᴛ ʟɪɴᴋ: {'[ᴄʟɪᴄᴋ](' + link_url + ')' if link_url else 'N/A'}\n"
                 f"📈 ɢʀᴏᴜᴘ ᴍᴇᴍʙᴇʀs: {count}\n"
-                f"🤔 ᴀᴅᴅᴇᴅ ʙʏ: {message.from_user.mention}"
+                f"🤔 ᴀᴅᴅᴇᴅ ʙʏ: {message.from_user.mention if message.from_user else 'N/A'}"
             )
-            await app.send_photo(LOG_GROUP_ID, photo=random.choice(photo), caption=msg, reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"sᴇᴇ ɢʀᴏᴜᴘ👀", url=f"{link}")]
-            ]))
+            try:
+                reply_markup = None
+                if link_url:
+                    reply_markup = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("sᴇᴇ ɢʀᴏᴜᴘ👀", url=link_url)]
+                    ])
+                if reply_markup:
+                    await app.send_photo(
+                        LOG_GROUP_ID,
+                        photo=random.choice(photo),
+                        caption=msg,
+                        reply_markup=reply_markup,
+                        parse_mode=ParseMode.MARKDOWN,
+                    )
+                else:
+                    await app.send_photo(
+                        LOG_GROUP_ID,
+                        photo=random.choice(photo),
+                        caption=msg,
+                        parse_mode=ParseMode.MARKDOWN,
+                    )
+            except Exception:
+                # Fallback to sending text if photo or markup fails
+                try:
+                    await app.send_message(LOG_GROUP_ID, msg)
+                except Exception:
+                    pass
 
 @app.on_message(filters.left_chat_member)
 async def on_left_chat_member(_, message: Message):
