@@ -41,4 +41,4 @@ bing_image_downloader
 git+https://github.com/alexmercerind/youtube-search-python@main
 git+https://github.com/joetats/youtube_search@master
 bing-image-urls
-yt-dlp>=2025.10.14
+yt-dlp>=2025.10.22
